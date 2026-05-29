@@ -62,7 +62,11 @@ class RagRetriever {
     for (const hit of result.hits.slice(0, opts.limit || 6)) {
       const code = String(hit.code || '').slice(0, opts.snippetChars || 1200);
       const lang = String(hit.lang || '').replace(/[^a-z0-9+#-]/gi, '');
-      const header = `### ${hit.repo || 'local'}:${hit.path}:${hit.startLine || 1} score=${hit.score.toFixed(3)}`;
+      const scoreBits = [`score=${hit.score.toFixed(3)}`];
+      if (typeof hit.bm25Score === 'number') scoreBits.push(`bm25=${hit.bm25Score.toFixed(3)}`);
+      if (typeof hit.vectorScore === 'number') scoreBits.push(`vector=${hit.vectorScore.toFixed(3)}`);
+      const symbol = hit.symbol ? ` ${hit.symbol}` : '';
+      const header = `### ${hit.repo || 'local'}:${hit.path}:${hit.startLine || 1}${symbol} ${scoreBits.join(' ')}`;
       const block = `${header}\n` + '```' + `${lang}\n${code}\n` + '```';
       if (used + block.length > maxChars) break;
       used += block.length;
@@ -73,7 +77,7 @@ class RagRetriever {
     const stuckHint = result.stuck && process.env.SMALLCODE_WEB_BROWSE === 'true'
       ? `\nRAG confidence is low. If blocked, use web_search with: ${query} github code example`
       : '';
-    return `\n[RAG_CODE_CONTEXT] Retrieved similar code snippets. Use these as examples, not as authoritative project files.${stuckHint}\n${parts.join('\n\n')}\n[/RAG_CODE_CONTEXT]\n`;
+    return `\n[RAG_CODE_CONTEXT] Retrieved similar code snippets using hybrid BM25 + local hashed-vector search. Use these as examples, not as authoritative project files.${stuckHint}\n${parts.join('\n\n')}\n[/RAG_CODE_CONTEXT]\n`;
   }
 }
 
